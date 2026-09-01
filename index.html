@@ -4,6 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HC Day Trader Sim v3.0</title>
+    <!-- PWA: manifest + theme color + icons -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0b1220">
+    <meta name="description" content="HC Day Trader Sim v3.0 — a practice day-trading and strategy-building simulator with $25,000 in simulated cash. Trade against generated or live data. No real money is at risk.">
+    <meta name="application-name" content="HC Day Trader Sim">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="HC Trader">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="color-scheme" content="dark">
+    <meta name="format-detection" content="telephone=no">
+    <meta property="og:title" content="HC Day Trader Sim v3.0">
+    <meta property="og:description" content="Practice day-trading simulator with simulated cash. No real money.">
+    <meta property="og:type" content="website">
+    <!-- Favicons -->
+    <link rel="icon" href="/icons/favicon.ico" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png">
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="mask-icon" href="/icons/icon.svg" color="#3ddc97">
+    <link rel="fluid-icon" href="/icons/icon-512.png" title="HC Day Trader Sim">
+
 <style>
   :root {
     --bg: #0b1220;
@@ -355,6 +379,49 @@
     .rule-row { grid-template-columns: 1fr 1fr; }
     .quick-prompts { grid-template-columns: 1fr; }
   }
+
+    /* PWA Install button — appears in header once beforeinstallprompt fires */
+    .pwa-install-btn {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      margin-left: 8px;
+      border-radius: 6px;
+      background: var(--accent);
+      color: #04140c;
+      border: none;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .pwa-install-btn:hover { background: #2ec482; }
+    .pwa-install-btn.ready { display: inline-flex; }
+    .pwa-install-btn .pwa-x { margin-left: 4px; opacity: 0.55; font-size: 13px; line-height: 1; }
+    .pwa-update-toast {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      background: var(--panel); border: 1px solid var(--accent);
+      color: var(--text); padding: 10px 14px; border-radius: 8px;
+      font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      z-index: 9999; display: none; gap: 10px; align-items: center;
+    }
+    .pwa-update-toast.show { display: flex; }
+    .pwa-update-toast button {
+      background: var(--accent); color: #04140c; border: none;
+      padding: 5px 10px; border-radius: 4px; font-weight: 700;
+      font-size: 11px; cursor: pointer;
+    }
+    /* Standalone-mode tweaks: when launched as PWA, hide the browser-address-bar gap */
+    @media (display-mode: standalone), (display-mode: window-controls-overlay) {
+      body { user-select: none; -webkit-user-select: none; }
+      /* keep text fields selectable */
+      input, select, textarea { user-select: text; -webkit-user-select: text; }
+      /* safe-area insets on iOS */
+      header { padding-top: env(safe-area-inset-top); padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); }
+      footer { padding-bottom: env(safe-area-inset-bottom); }
+    }
+
 </style>
 </head>
 <body>
@@ -373,6 +440,7 @@
     <button data-tab="settings"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg><span>Settings</span></button>
     <button class="guide-btn" id="btn-guide" type="button"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Guide</span></button>
   </nav>
+    <button class="pwa-install-btn" id="pwa-install-btn" type="button" title="Install HC Day Trader Sim as an app"><span>&#128229;</span><span>Install</span><span class="pwa-x" id="pwa-install-dismiss" title="Dismiss">&times;</span></button>
   <div class="acct-bar">
     <div class="acct-item"><div class="acct-label">Cash</div><div class="acct-val" id="hd-cash">$25,000.00</div></div>
     <div class="acct-sep"></div>
@@ -625,6 +693,12 @@
     <div class="scroll-tab settings-wrap"></div>
   </section>
 </main>
+
+
+<div class="pwa-update-toast" id="pwa-update-toast" role="status" aria-live="polite">
+  <span>A new version is available.</span>
+  <button id="pwa-update-reload" type="button">Reload</button>
+</div>
 
 <!-- FLOATING AI ADVISOR (persists across tabs) -->
 <button class="ai-fab" id="ai-fab" title="AI Advisor"><span>&#129302;</span></button>
@@ -2590,6 +2664,115 @@ initGuide();
 initChartHover();
 initAIFloatPanel();
 initAILevelToggle();
+</script>
+
+<script>
+/* ============================================================
+   PWA: Service Worker registration + install prompt + deep-link
+   ============================================================ */
+(function () {
+  'use strict';
+
+  // --- 5a. Register service worker (only on http/https, never on file://) ---
+  if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(function (reg) {
+          // Listen for updates
+          reg.addEventListener('updatefound', function () {
+            var nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', function () {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                // New version ready — show update toast
+                var toast = document.getElementById('pwa-update-toast');
+                if (toast) toast.classList.add('show');
+              }
+            });
+          });
+          // Periodic check for updates every hour
+          setInterval(function () { reg.update().catch(function () {}); }, 60 * 60 * 1000);
+        })
+        .catch(function (err) { console.warn('[PWA] SW registration failed:', err); });
+    });
+
+    // Reload when the new SW takes over
+    var reloadBtn = document.getElementById('pwa-update-reload');
+    if (reloadBtn) {
+      reloadBtn.addEventListener('click', function () {
+        navigator.serviceWorker.getRegistration().then(function (reg) {
+          if (reg && reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+        });
+      });
+    }
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      // Avoid infinite reload loop: only reload if we actually got a new controller
+      if (navigator.serviceWorker.controller) window.location.reload();
+    });
+  }
+
+  // --- 5b. beforeinstallprompt: show our custom install button ---
+  var deferredPrompt = null;
+  var installBtn = document.getElementById('pwa-install-btn');
+  var installDismiss = document.getElementById('pwa-install-dismiss');
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) installBtn.classList.add('ready');
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', function (evt) {
+      // If user clicked the dismiss X
+      if (evt.target === installDismiss) {
+        installBtn.classList.remove('ready');
+        deferredPrompt = null;
+        return;
+      }
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function () {
+        deferredPrompt = null;
+        if (installBtn) installBtn.classList.remove('ready');
+      });
+    });
+  }
+
+  window.addEventListener('appinstalled', function () {
+    if (installBtn) installBtn.classList.remove('ready');
+    deferredPrompt = null;
+  });
+
+  // --- 5c. Deep-linking: support ?tab=trade|backtest|ai|learn|settings ---
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var tab = params.get('tab');
+    if (tab) {
+      var valid = { trade:1, backtest:1, ai:1, learn:1, settings:1 };
+      if (valid[tab]) {
+        // Defer until DOM is ready and the app's tab click handler is wired up
+        function activateTab() {
+          var btn = document.querySelector('#tabs button[data-tab="' + tab + '"]');
+          if (btn) { btn.click(); return true; }
+          return false;
+        }
+        if (!activateTab()) {
+          // Retry a few times in case the DOM hasn't finished bootstrapping
+          var tries = 0;
+          var iv = setInterval(function () {
+            if (activateTab() || tries++ > 20) clearInterval(iv);
+          }, 50);
+        }
+      }
+    }
+  } catch (e) { /* deep-link is best-effort */ }
+
+  // --- 5d. Detect standalone mode for analytics-class behavior (no telemetry here) ---
+  if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) {
+    document.documentElement.classList.add('pwa-standalone');
+  }
+})();
 </script>
 </body>
 </html>
